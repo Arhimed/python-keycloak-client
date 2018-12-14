@@ -1,5 +1,11 @@
 import abc
-from urllib import urlencode
+try:
+    #python2
+    from urllib import urlencode
+except ImportError:
+    #python3
+    from urllib.parse import urlencode
+# from urllib import urlencode
 
 __all__ = (
     'KeycloakAdmin',
