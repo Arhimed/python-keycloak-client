@@ -12,6 +12,8 @@ class Users(KeycloakAdminBase, KeycloakAdminCollection):
     _paths = {
         'collection': '/auth/admin/realms/{realm}/users',
         'count': '/auth/admin/realms/{realm}/users/count',
+        'mapping': '/auth/admin/realms/{realm}/users/{userid}/role-mappings',
+        'impersonate': '/auth/admin/realms/{realm}/users/{userid}/impersonation',
     }
     _realm_name = None
 
@@ -63,3 +65,27 @@ class Users(KeycloakAdminBase, KeycloakAdminCollection):
 
     def _url_collection_params(self):
         return {'realm': self._realm_name}
+
+
+    def role_mapping(self, user_id):
+        """
+        get role mappings (realm and client) for an user per id
+
+        https://www.keycloak.org/docs-api/2.5/rest-api/index.html#_get_role_mappings_2
+
+        """
+        return self._client.get(
+            self._client.get_full_url(
+                self.get_path('mapping', realm=self._realm_name, userid=user_id)
+            )
+        )
+
+    def impersonate_user(self,user_id):
+        payload = {}
+        payload['id'] = user_id
+        payload['realm'] = self._realm_name
+        return self._client.post(
+            self._client.get_full_url(
+                self.get_path('impersonate', realm=self._realm_name, userid=user_id)
+            ), data=json.dumps(payload)
+        )
