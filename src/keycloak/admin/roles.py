@@ -1,12 +1,18 @@
 import json
-
 from collections import OrderedDict
+from keycloak.admin import KeycloakAdminBase, KeycloakAdminCollection
 
-from keycloak.admin import KeycloakAdminBase
+ROLE_KWARGS = [
+    'description',
+    'id',
+    'client_role',
+    'composite',
+    'composites',
+    'container_id',
+    'scope_param_required'
+]
 
-
-ROLE_KWARGS = ['description', 'id', 'client_role', 'composite', 'composites',
-               'container_id', 'scope_param_required']
+__all__ = ('Role', 'Roles',)
 
 
 def to_camel_case(snake_cased_str):
@@ -16,8 +22,7 @@ def to_camel_case(snake_cased_str):
     return components[0] + ''.join(map(str.capitalize, components[1:]))
 
 
-class Roles(KeycloakAdminBase):
-
+class Roles(KeycloakAdminBase, KeycloakAdminCollection):
     _client_id = None
     _realm_name = None
     _paths = {
@@ -37,7 +42,8 @@ class Roles(KeycloakAdminBase):
         """
         Create new role
 
-        http://www.keycloak.org/docs-api/3.4/rest-api/index.html#_roles_resource
+        http://www.keycloak.org/docs-api/3.4/rest-api/index.html
+        #_roles_resource
 
         :param str name: Name for the role
         :param str description: (optional)
@@ -55,17 +61,14 @@ class Roles(KeycloakAdminBase):
                 payload[to_camel_case(key)] = kwargs[key]
 
         return self._client.post(
-            url=self._client.get_full_url(
-                self.get_path('collection',
-                              realm=self._realm_name,
-                              id=self._client_id)
-            ),
+            url=self._url_collection(),
             data=json.dumps(payload)
         )
 
+    def _url_collection_params(self):
+        return {'realm': self._realm_name, 'id': self._client_id}
 
 class Role(KeycloakAdminBase):
-
     _paths = {
         'single': '/auth/admin/realms/{realm}/clients/{id}/roles/{role_name}'
     }

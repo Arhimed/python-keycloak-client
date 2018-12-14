@@ -1,21 +1,30 @@
 import json
-
 from collections import OrderedDict
+from keycloak.admin import KeycloakAdminBase, KeycloakAdminCollection
 
-from keycloak.admin import KeycloakAdminBase
+__all__ = ('Users',)
 
 
-class Users(KeycloakAdminBase):
-
-    _paths = {
-        'collection': '/auth/admin/realms/{realm}/users'
+class Users(KeycloakAdminBase, KeycloakAdminCollection):
+    _defaults_all_query = { # https://www.keycloak.org/docs-api/2.5/rest-api/index.html#_get_users_2
+        'max': -1, # turns off default max (100)
     }
-
+    _paths = {
+        'collection': '/auth/admin/realms/{realm}/users',
+        'count': '/auth/admin/realms/{realm}/users/count',
+    }
     _realm_name = None
 
     def __init__(self, realm_name, *args, **kwargs):
         self._realm_name = realm_name
         super(Users, self).__init__(*args, **kwargs)
+
+    def count(self):
+        return self._client.get(
+            self._client.get_full_url(
+                self.get_path('count', realm=self._realm_name)
+            )
+        )
 
     def create(self, username, **kwargs):
         """
@@ -47,9 +56,10 @@ class Users(KeycloakAdminBase):
         if 'enabled' in kwargs:
             payload['enabled'] = kwargs['enabled']
 
-        self._client.post(
-            url=self._client.get_full_url(
-                self.get_path('collection', realm=self._realm_name)
-            ),
+        return self._client.post(
+            url=self._url_collection(),
             data=json.dumps(payload)
         )
+
+    def _url_collection_params(self):
+        return {'realm': self._realm_name}

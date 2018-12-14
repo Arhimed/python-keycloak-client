@@ -1,6 +1,9 @@
 import json
 
-from urllib.parse import urlencode
+try:
+    from urllib.parse import urlencode  # noqa: F401
+except ImportError:
+    from urllib import urlencode  # noqa: F401
 
 from keycloak.mixins import WellKnownMixin
 
@@ -8,9 +11,11 @@ PATH_WELL_KNOWN = "auth/realms/{}/.well-known/uma2-configuration"
 
 
 class KeycloakUMA(WellKnownMixin, object):
+    DEFAULT_HEADERS = {"Content-type": 'application/json'}
 
     _realm = None
     _well_known = None
+    _dumps = staticmethod(json.dumps)
 
     def __init__(self, realm):
         self._realm = realm
@@ -38,9 +43,7 @@ class KeycloakUMA(WellKnownMixin, object):
         """
         return self._realm.client.post(
             self.well_known['resource_registration_endpoint'],
-            data=json.dumps(
-                self.get_payload(name=name, **kwargs)
-            ),
+            data=self._get_data(name=name, **kwargs),
             headers=self.get_headers(token)
         )
 
@@ -62,9 +65,7 @@ class KeycloakUMA(WellKnownMixin, object):
         return self._realm.client.put(
             '{}/{}'.format(
                 self.well_known['resource_registration_endpoint'], id),
-            data=json.dumps(
-                self.get_payload(name=name, **kwargs)
-            ),
+            data=self._get_data(name=name, **kwargs),
             headers=self.get_headers(token)
         )
 
@@ -113,13 +114,10 @@ class KeycloakUMA(WellKnownMixin, object):
         :param str scope: (optional)
         :rtype: list
         """
-        params = ''
-        if kwargs:
-            params = '?' + urlencode(kwargs)
-
         return self._realm.client.get(
-            self.well_known['resource_registration_endpoint'] + params,
-            headers=self.get_headers(token)
+            self.well_known['resource_registration_endpoint'],
+            headers=self.get_headers(token),
+            **kwargs
         )
 
     def resource_create_ticket(self, token, id, scopes, **kwargs):
@@ -134,15 +132,10 @@ class KeycloakUMA(WellKnownMixin, object):
         :param dict claims: (optional)
         :rtype: dict
         """
-        data = [{
-                    'resource_id': id,
-                    'resource_scopes': scopes
-                }]
-        data[0].update(kwargs)
-
+        data = dict(resource_id=id, resource_scopes=scopes, **kwargs)
         return self._realm.client.post(
             self.well_known['permission_endpoint'],
-            data=json.dumps(data),
+            data=self._dumps([data]),
             headers=self.get_headers(token)
         )
 
@@ -163,15 +156,9 @@ class KeycloakUMA(WellKnownMixin, object):
         :param str condition: (optional)
         :rtype: dict
         """
-        data = {
-            'name': name,
-            'scopes': scopes,
-        }
-        data.update(kwargs)
-
         return self._realm.client.post(
-            self.well_known['policy_endpoint'] + '/' + id,
-            data=json.dumps(data),
+            '{}/{}'.format(self.well_known['policy_endpoint'], id),
+            data=self._get_data(name=name, scopes=scopes, **kwargs),
             headers=self.get_headers(token)
         )
 
@@ -187,8 +174,8 @@ class KeycloakUMA(WellKnownMixin, object):
         :rtype: dict
         """
         return self._realm.client.put(
-            self.well_known['policy_endpoint'] + '/' + id,
-            data=json.dumps(kwargs),
+            '{}/{}'.format(self.well_known['policy_endpoint'], id),
+            data=self._dumps(kwargs),
             headers=self.get_headers(token)
         )
 
@@ -204,7 +191,7 @@ class KeycloakUMA(WellKnownMixin, object):
         :rtype: dict
         """
         return self._realm.client.delete(
-            self.well_known['policy_endpoint'] + '/' + id,
+            '{}/{}'.format(self.well_known['policy_endpoint'], id),
             headers=self.get_headers(token)
         )
 
@@ -222,27 +209,21 @@ class KeycloakUMA(WellKnownMixin, object):
 
         :rtype: dict
         """
-        params = ''
-        if kwargs:
-            params = '?' + urlencode(kwargs)
-
         return self._realm.client.get(
-            self.well_known['policy_endpoint'] + params,
-            headers=self.get_headers(token)
+            self.well_known['policy_endpoint'],
+            headers=self.get_headers(token),
+            **kwargs
         )
 
-
-    def get_headers(self, token):
-        return {
+    @classmethod
+    def get_headers(cls, token):
+        return dict(cls.DEFAULT_HEADERS, **{
             "Authorization": "Bearer " + token,
-            "Content-type": 'application/json'
-        }
+        })
 
-    def get_payload(self, name, scopes=None, **kwargs):
-        payload = {
-            'name': name,
-            'scopes': scopes or []
-        }
-        payload.update(**kwargs)
+    @staticmethod
+    def get_payload(name, scopes=None, **kwargs):
+        return dict(name=name, scopes=scopes or [], **kwargs)
 
-        return payload
+    def _get_data(self, *args, **kwargs):
+        return self._dumps(self.get_payload(*args, **kwargs))

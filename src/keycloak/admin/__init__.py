@@ -1,5 +1,14 @@
-class KeycloakAdminBase(object):
+import abc
+from urllib import urlencode
 
+__all__ = (
+    'KeycloakAdmin',
+    'KeycloakAdminBase',
+    'KeycloakAdminCollection',
+)
+
+
+class KeycloakAdminBase(object):
     _client = None
     _paths = None
 
@@ -17,7 +26,6 @@ class KeycloakAdminBase(object):
 
 
 class KeycloakAdmin(object):
-
     _realm = None
     _paths = {
         'root': '/'
@@ -68,6 +76,7 @@ class KeycloakAdmin(object):
         return self._realm.client.get(
             url=url, headers=self._add_auth_header(headers=headers)
         )
+
     #
     # def delete(self, url, headers, **kwargs):
     #     return self.session.delete(url, headers=headers, **kwargs)
@@ -82,3 +91,52 @@ class KeycloakAdmin(object):
         headers['Authorization'] = "Bearer {}".format(token)
         headers['Content-Type'] = 'application/json'
         return headers
+
+
+class KeycloakAdminCollection(object):
+    __metaclass__ = abc.ABCMeta
+    _defaults_all_query = {} # default query-parameters
+    _sort_col = None
+    _sort_asc = True
+
+    def all(self, **kwargs):
+        query = self._defaults_all_query.copy()
+        query.update(kwargs)
+        return self._all_sorted(self._client.get(self._url_collection(**query)))
+
+    def all_on(self, col, sort=True, **kwargs):
+        res = self.unsorted().all(**kwargs)
+        if col is not None:
+            res = [u[col] for u in res]
+            if sort:
+                res.sort(key=lambda v: v.lower()) # case insensitive sorting
+        return res
+
+    def sorted_by(self, col, asc=True):  # scope
+        self._sort_col = col
+        self._sort_asc = asc
+        return self
+
+    def unsorted(self):  # scope
+        self._sort_col = None
+        return self
+
+    def _all_sorted(self, res): # should be called in all-method by inherited class on request-result
+        if self._sort_col:
+            res.sort(key=lambda v: v[self._sort_col].lower(), reverse=not self._sort_asc) # case insensitive sorting
+        return res
+
+    def _all_reset(self):
+        self._sort_col = None
+        self._sort_asc = True
+
+    def _url_collection(self, **kwargs): # TODO generalize?
+        params = self._url_collection_params() or {} # path-params
+        url = self._client.get_full_url(self.get_path('collection', **params))
+        if kwargs:
+            url += '?' + urlencode(kwargs)
+        return url
+
+    @abc.abstractmethod
+    def _url_collection_params(self): # returns path-parameters, which are neccessary on collection-request
+        pass

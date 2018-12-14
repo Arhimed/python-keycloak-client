@@ -3,9 +3,9 @@ from collections import OrderedDict
 from keycloak.mixins import WellKnownMixin
 
 try:
-    from urllib.parse import urlencode
+    from urllib.parse import urlencode  # noqa: F041
 except ImportError:
-    from urllib import urlencode
+    from urllib import urlencode  # noqa: F041
 
 from jose import jwt
 
@@ -92,9 +92,11 @@ class KeycloakOpenidConnect(WellKnownMixin):
         :raises jose.exceptions.JWTClaimsError: If any claim is invalid in any
             way.
         """
-        return jwt.decode(token, key,
-                          audience=kwargs.get('audience') or self._client_id,
-                          algorithms=algorithms or ['RS256'], **kwargs)
+        return jwt.decode(
+            token, key,
+            audience=kwargs.pop('audience', None) or self._client_id,
+            algorithms=algorithms or ['RS256'], **kwargs
+        )
 
     def logout(self, refresh_token):
         """
@@ -186,6 +188,21 @@ class KeycloakOpenidConnect(WellKnownMixin):
         return self._token_request(grant_type='authorization_code', code=code,
                                    redirect_uri=redirect_uri)
 
+    def password_credentials(self, username, password, **kwargs):
+        """
+        Retrieve access token by 'password credentials' grant.
+
+        https://tools.ietf.org/html/rfc6749#section-4.3
+
+        :param str username: The user name to obtain an access token for
+        :param str password: The user's password
+        :rtype: dict
+        :return: Access token response
+        """
+        return self._token_request(grant_type='password',
+                                   username=username, password=password,
+                                   **kwargs)
+
     def client_credentials(self, **kwargs):
         """
         Retrieve access token by `client_credentials` grant.
@@ -217,7 +234,8 @@ class KeycloakOpenidConnect(WellKnownMixin):
         Token exchange is the process of using a set of credentials or token to
         obtain an entirely different token.
 
-        http://www.keycloak.org/docs/latest/securing_apps/index.html#_token-exchange
+        http://www.keycloak.org/docs/latest/securing_apps/index.html
+        #_token-exchange
         https://www.ietf.org/id/draft-ietf-oauth-token-exchange-12.txt
 
         :param subject_token: A security token that represents the identity of
@@ -231,7 +249,7 @@ class KeycloakOpenidConnect(WellKnownMixin):
             identifier configured by a specific Identity Provider.
         :param subject_token_type: This parameter is the type of the token
             passed with the subject_token parameter. This defaults to
-            urn\:ietf:params:oauth:token-type:access_token if the subject_token
+            urn:ietf:params:oauth:token-type:access_token if the subject_token
             comes from the realm and is an access token. If it is an external
             token, this parameter may or may not have to be specified depending
             on the requirements of the subject_issuer.
@@ -242,8 +260,8 @@ class KeycloakOpenidConnect(WellKnownMixin):
             urn:ietf:params:oauth:token-type:refresh_token in which case you
             will be returned both an access token and refresh token within the
             response. Other appropriate values are
-            urn\:ietf:params:oauth:token-type:access_token and
-            urn\:ietf:params:oauth:token-type:id_token
+            urn:ietf:params:oauth:token-type:access_token and
+            urn:ietf:params:oauth:token-type:id_token
         :param audience: This parameter specifies the target client you want
             the new token minted for.
         :param requested_issuer: This parameter specifies that the client wants

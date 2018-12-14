@@ -1,14 +1,24 @@
-from keycloak.admin import KeycloakAdminBase
+from keycloak.admin import KeycloakAdminBase, KeycloakAdminCollection
+
+__all__ = ('Realm', 'Realms',)
 
 
-class Realms(KeycloakAdminBase):
+class Realms(KeycloakAdminBase, KeycloakAdminCollection):
+    _paths = {
+        'collection': '/auth/admin/realms'
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(Realms, self).__init__(*args, **kwargs)
 
     def by_name(self, name):
         return Realm(name=name, client=self._client)
 
+    def _url_collection_params(self):
+        pass
+
 
 class Realm(KeycloakAdminBase):
-
     _name = None
 
     def __init__(self, name, *args, **kwargs):
