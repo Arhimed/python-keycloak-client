@@ -26,7 +26,7 @@ class Roles(KeycloakAdminBase, KeycloakAdminCollection):
     _client_id = None
     _realm_name = None
     _paths = {
-        'collection': '/auth/admin/realms/{realm}/clients/{id}/roles'
+        'collection': '/auth/admin/realms/{realm}/clients/{id}/roles',
     }
 
     def __init__(self, realm_name, client_id, *args, **kwargs):
@@ -70,7 +70,7 @@ class Roles(KeycloakAdminBase, KeycloakAdminCollection):
 
 class Role(KeycloakAdminBase):
     _paths = {
-        'single': '/auth/admin/realms/{realm}/clients/{id}/roles/{role_name}'
+        'single': '/auth/admin/realms/{realm}/clients/{client}/roles/{role_name}'
     }
 
     def __init__(self, realm_name, client_id, role_name, *args, **kwargs):
@@ -79,6 +79,13 @@ class Role(KeycloakAdminBase):
         self._role_name = role_name
 
         super(Role, self).__init__(*args, **kwargs)
+
+    def get_role(self):
+        return self._client.get(
+            self._client.get_full_url(
+                self.get_path('single', realm=self._realm_name, role_name=self._role_name, client=self._client_id)
+            )
+        )
 
     def update(self, name, **kwargs):
         """

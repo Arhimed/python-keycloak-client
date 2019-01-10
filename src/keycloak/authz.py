@@ -208,7 +208,7 @@ class KeycloakAuthz(WellKnownMixin, object):
                 token = response.get('refresh_token')
                 decoded_token = self._decode_token(token.split('.')[1])
                 roles_info = decoded_token.get('realm_access', {})
-        except (requests.exceptions.HTTPError) as error:
+        except KeycloakClientError as error:
             self.logger.warn(str(error))
         return roles_info
     

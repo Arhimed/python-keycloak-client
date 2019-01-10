@@ -1,11 +1,5 @@
 import abc
-try:
-    #python2
-    from urllib import urlencode
-except ImportError:
-    #python3
-    from urllib.parse import urlencode
-# from urllib import urlencode
+import six
 
 __all__ = (
     'KeycloakAdmin',
@@ -56,7 +50,6 @@ class KeycloakAdmin(object):
         """
         Set token to authenticate the call or a callable which will be called
         to get the token.
-
         :param str | callable token:
         :rtype: KeycloakAdmin
         """
@@ -83,6 +76,10 @@ class KeycloakAdmin(object):
             url=url, headers=self._add_auth_header(headers=headers)
         )
 
+    def delete(self, url, headers=None, **kwargs):
+        return self._realm.client.delete(
+            url=url, headers=self._add_auth_header(headers=headers), **kwargs
+        )
     #
     # def delete(self, url, headers, **kwargs):
     #     return self.session.delete(url, headers=headers, **kwargs)
@@ -101,7 +98,7 @@ class KeycloakAdmin(object):
 
 class KeycloakAdminCollection(object):
     __metaclass__ = abc.ABCMeta
-    _defaults_all_query = {} # default query-parameters
+    _defaults_all_query = {}  # default query-parameters
     _sort_col = None
     _sort_asc = True
 
@@ -115,7 +112,7 @@ class KeycloakAdminCollection(object):
         if col is not None:
             res = [u[col] for u in res]
             if sort:
-                res.sort(key=lambda v: v.lower()) # case insensitive sorting
+                res.sort(key=lambda v: v.lower())  # case insensitive sorting
         return res
 
     def sorted_by(self, col, asc=True):  # scope
@@ -127,22 +124,23 @@ class KeycloakAdminCollection(object):
         self._sort_col = None
         return self
 
-    def _all_sorted(self, res): # should be called in all-method by inherited class on request-result
+    def _all_sorted(self, res):  # should be called in all-method by inherited class on request-result
         if self._sort_col:
-            res.sort(key=lambda v: v[self._sort_col].lower(), reverse=not self._sort_asc) # case insensitive sorting
+            res.sort(key=lambda v: v[self._sort_col].lower(), reverse=not self._sort_asc)  # case insensitive sorting
         return res
 
     def _all_reset(self):
         self._sort_col = None
         self._sort_asc = True
 
-    def _url_collection(self, **kwargs): # TODO generalize?
-        params = self._url_collection_params() or {} # path-params
+    def _url_collection(self, **kwargs):  # TODO generalize?
+        params = self._url_collection_params() or {}  # path-params
         url = self._client.get_full_url(self.get_path('collection', **params))
         if kwargs:
-            url += '?' + urlencode(kwargs)
+            url += '?' + six.moves.urllib.parse.urlencode(kwargs)
         return url
 
     @abc.abstractmethod
-    def _url_collection_params(self): # returns path-parameters, which are neccessary on collection-request
+    def _url_collection_params(self):  # returns path-parameters, which are neccessary on collection-request
         pass
+
