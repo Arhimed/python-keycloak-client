@@ -2,7 +2,7 @@ import logging
 
 from requests.exceptions import HTTPError
 
-from keycloak.exceptions import KeycloakClientError
+from keycloak.exceptions import KeycloakClientResponseError
 
 try:
     from urllib.parse import urljoin  # noqa: F401
@@ -16,6 +16,7 @@ class KeycloakClient(object):
     _server_url = None
     _session = None
     _headers = None
+    _response_headers = None # headers of last response
 
     def __init__(self, server_url, headers=None, logger=None):
         """
@@ -36,6 +37,10 @@ class KeycloakClient(object):
         self.logger = logger
         self._server_url = server_url
         self._headers = headers or {}
+
+    @property
+    def response_headers(self):
+        return self._response_headers
 
     @property
     def server_url(self):
@@ -75,18 +80,20 @@ class KeycloakClient(object):
             self.session.get(url, headers=headers or {}, params=kwargs)
         )
 
-    def delete(self, url, headers, **kwargs):
-        return self.session.delete(url, headers=headers, **kwargs)
+    def delete(self, url, headers, data=None, **kwargs):
+        return self.session.delete(url, headers=headers, data=data, **kwargs)
 
     def _handle_response(self, response):
         with response:
+            self._response_headers = response.headers
+
             try:
                 response.raise_for_status()
             except HTTPError as err:
                 self.logger.debug(response.content)
                 self.logger.debug(response.headers)
                 self.logger.debug(response.request.headers)
-                raise KeycloakClientError(original_exc=err)
+                raise KeycloakClientResponseError(original_exc=err, response=response)
 
             try:
                 return response.json()
